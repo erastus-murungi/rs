@@ -1,0 +1,12 @@
+.vscode
+build
+CMakeFiles
+Testing
+cmake_install.cmake
+Makefile
+DartConfiguration.tcl
+CPackConfig.cmake
+CPackSourceConfig.cmake
+CMakeCache.txt
+CTestTestfile.cmake
+RankSelect
