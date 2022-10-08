@@ -27,6 +27,11 @@ static inline uint64_t word_toggle(uint64_t x, uint8_t k)
     return x ^ (BIT << k);
 }
 
+static inline uint64_t popcnt(uint64_t i)
+{
+    return __builtin_popcountll(i);
+}
+
 bitvector *bv_new(size_t size)
 {
     const uint64_t num_ints = (size >> LOG_WORD_SIZE) + BIT;
@@ -35,31 +40,6 @@ bitvector *bv_new(size_t size)
     *bv = (bitvector){
         data, size, (num_ints) * (BIT << LOG_WORD_SIZE)};
     return bv;
-}
-
-void word_bin_rep(char *string, uint64_t n, size_t nx)
-{
-    /** return the binary representation of a number using nx characters */
-
-    if (nx < msb(n))
-    {
-        fprintf(stderr, "nx is too small to correctly represent x");
-        return;
-    }
-
-    int64_t c;
-    uint64_t k;
-
-    for (c = --nx; c >= 0; c--)
-    {
-        k = n >> c;
-        if (k & BIT)
-            string[nx - c] = '1';
-        else
-            string[nx - c] = '0';
-    }
-
-    string[++nx] = '\0';
 }
 
 void bv_print(bitvector *bv)
@@ -489,6 +469,19 @@ uint64_t bv_hamming_distance(bitvector *a, bitvector *b)
     return hamming_weight;
 }
 
+bool bv_toggle(bitvector *bv, uint64_t pos)
+{
+    bv_check_index(bv, pos);
+
+    uint64_t block_index, k, block;
+    block_index = pos / WORD_SIZE;
+    k = pos % WORD_SIZE;
+    block = bv_get_block(bv, block_index);
+    block = word_toggle(block, k);
+    bv->data[block_index] = block;
+    return true;
+}
+
 uint64_t msb(uint64_t v)
 {
     static uint8_t deBruijn[64] =
@@ -510,15 +503,27 @@ uint64_t msb(uint64_t v)
     return deBruijn[(v * multiplier) >> 58];
 }
 
-bool bv_toggle(bitvector *bv, uint64_t pos)
+void word_bin_rep(char *string, uint64_t n, size_t nx)
 {
-    bv_check_index(bv, pos);
+    /** return the binary representation of a number using nx characters */
 
-    uint64_t block_index, k, block;
-    block_index = pos / WORD_SIZE;
-    k = pos % WORD_SIZE;
-    block = bv_get_block(bv, block_index);
-    block = word_toggle(block, k);
-    bv->data[block_index] = block;
-    return true;
+    if (nx < msb(n))
+    {
+        fprintf(stderr, "nx is too small to correctly represent x");
+        return;
+    }
+
+    int64_t c;
+    uint64_t k;
+
+    for (c = --nx; c >= 0; c--)
+    {
+        k = n >> c;
+        if (k & BIT)
+            string[nx - c] = '1';
+        else
+            string[nx - c] = '0';
+    }
+
+    string[++nx] = '\0';
 }

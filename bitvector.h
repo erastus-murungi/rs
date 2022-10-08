@@ -15,14 +15,12 @@
 #define WORD_SIZE (64)
 #define LOG_WORD_SIZE (6UL)
 
-struct bitvector
+typedef struct
 {
     uint64_t *data;
     uint64_t size;
-    uint64_t allocated; // multiple of BB_SIZE
-};
-
-typedef struct bitvector bitvector;
+    uint64_t allocated;
+} bitvector;
 
 bitvector *bv_new(size_t);
 
@@ -72,7 +70,11 @@ bitvector *bv_reverse(bitvector *);
 
 void bv_print(bitvector *);
 
-void bv_print_dec(bitvector *bv);
+void bv_print_dec(bitvector *);
+
+int64_t bv_select(bitvector *, uint64_t);
+
+
 
 void word_bin_rep(char *string, uint64_t x, size_t nx);
 
@@ -80,15 +82,10 @@ void print_string_as_array(char *string, size_t size);
 
 void string_prepend(char *super_string, char *sub_string, uint64_t nsuper, uint64_t nsub);
 
-int64_t bv_select(bitvector *bv, uint64_t k);
+void string_reverse(char *string, size_t ns);
+
+
 
 uint64_t reverse_bits(uint64_t x);
 
 uint64_t msb(uint64_t v);
-
-static inline u_int64_t popcnt(uint64_t i)
-{
-    return __builtin_popcountll(i);
-}
-
-void string_reverse(char *string, size_t ns);
