@@ -30,17 +30,17 @@ void print_string_as_array(char *string, size_t size)
 
     if (size == 0)
     {
-        printf("[]");
+        printf("%s", "[]");
         return;
     }
 
-    printf("[");
+    printf("%s", "[");
     size_t i;
     if (size > THRESHHOLD)
     {
         for (i = 0; i < THRESHHOLD - 4; i++)
             printf("%c ", string[i]);
-        printf("... ");
+        printf("%s", "... ");
         for (i = size - 4; i < size - 1; i++)
             printf("%c ", string[i]);
         printf("%c]\n", string[size - 1]);
