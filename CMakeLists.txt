@@ -28,7 +28,7 @@ include(CPack)
 
 file(GLOB sources "${PROJECT_SOURCE_DIR}/*.c")
 
-add_executable(RankSelect main.c bitvector.h bitvector.c)
+add_executable(RankSelect main.c bitvector.h bitvector.c string_utils.c)
 
 include_directories("${PROJECT_SOURCE_DIR}")
 

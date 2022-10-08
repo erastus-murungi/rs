@@ -1,48 +1,43 @@
-//
-// Created by Erastus M Murungi on 1/30/20.
-//
-
 #include <stdlib.h>
 #include "bitvector.h"
 #include <stdio.h>
 #include <stdbool.h>
-#include <string.h>
 #include <math.h>
 
 
-static uint64_t get_block(bitvector *bv, uint64_t pos);
+static uint64_t bv_get_block(bitvector *bv, uint64_t pos);
 
-static inline uint64_t int_set_bit(uint64_t x, uint8_t k)
+static inline uint64_t word_set(uint64_t x, uint8_t k)
 {
     return x | (BIT << k);
 }
 
-static inline uint64_t int_clear_bit(uint64_t x, uint8_t k)
+static inline uint64_t word_clear(uint64_t x, uint8_t k)
 {
     return x & ~(BIT << k);
 }
 
-static inline uint64_t int_bit_is_set(uint64_t x, uint8_t k)
+static inline uint64_t word_isset(uint64_t x, uint8_t k)
 {
     return (x & (BIT << k));
 }
 
-static inline uint64_t int_toggle_bit(uint64_t x, uint8_t k)
+static inline uint64_t word_toggle(uint64_t x, uint8_t k)
 {
     return x ^ (BIT << k);
 }
 
 bitvector *bv_new(size_t size)
 {
-    const uint64_t num_ints = (size >> SHIFT) + BIT;
-    uint64_t *data = calloc(num_ints, BB_SIZE);
+    const uint64_t num_ints = (size >> LOG_WORD_SIZE) + BIT;
+    uint64_t *data = calloc(num_ints, WORD_SIZE);
     bitvector *bv = malloc(sizeof(bitvector));
     *bv = (bitvector){
-        data, size, (num_ints) * (BIT << SHIFT)};
+        data, size, (num_ints) * (BIT << LOG_WORD_SIZE)};
     return bv;
 }
 
-void bin_rep(char *string, uint64_t n, size_t nx)
+void word_bin_rep(char *string, uint64_t n, size_t nx)
 {
     /** return the binary representation of a number using nx characters */
 
@@ -67,87 +62,48 @@ void bin_rep(char *string, uint64_t n, size_t nx)
     string[++nx] = '\0';
 }
 
-void prepend(char *super_string, char *sub_string, uint64_t nsuper, uint64_t nsub)
-{
-    /**append the substring at the beginning of the super string**/
-
-    reverse_string(super_string, nsuper);
-    reverse_string(sub_string, nsub);
-    strcat(super_string, sub_string);
-    reverse_string(super_string, (nsuper + nsub));
-}
-
 void bv_print(bitvector *bv)
 {
     /** get the string representation of a bit vector*/
 
-    char *super_string = malloc(sizeof(char) * ((BB_SIZE << BIT) + BIT));
-    char *sub_string = malloc(sizeof(char) * (BB_SIZE + BIT));
+    char *super_string = malloc(sizeof(char) * ((WORD_SIZE << BIT) + BIT));
+    char *sub_string = malloc(sizeof(char) * (WORD_SIZE + BIT));
     uint64_t block_count, remainder_size, nsuper;
 
     nsuper = 0;
-    block_count = bv->allocated / BB_SIZE;
-    remainder_size = (bv_len(bv) % BB_SIZE);
+    block_count = bv->allocated / WORD_SIZE;
+    remainder_size = (bv_len(bv) % WORD_SIZE);
 
     /** get the binary representation of only the first block*/
-    if (bv_len(bv) >= BB_SIZE)
+    if (bv_len(bv) >= WORD_SIZE)
     {
         super_string[0] = '\0';
-        bin_rep(sub_string, bv->data[0], BB_SIZE);
-        prepend(super_string, sub_string, 0 * BB_SIZE, BB_SIZE);
-        nsuper += BB_SIZE;
+        word_bin_rep(sub_string, bv->data[0], WORD_SIZE);
+        string_prepend(super_string, sub_string, 0 * WORD_SIZE, WORD_SIZE);
+        nsuper += WORD_SIZE;
     }
 
     if (remainder_size > 0)
     {
-        bin_rep(sub_string, bv->data[block_count - 1], remainder_size);
-        prepend(super_string, sub_string, nsuper, remainder_size);
+        word_bin_rep(sub_string, bv->data[block_count - 1], remainder_size);
+        string_prepend(super_string, sub_string, nsuper, remainder_size);
         nsuper += remainder_size;
     }
     else
     {
         if (block_count > 1)
         {
-            bin_rep(sub_string, bv->data[block_count - 1], BB_SIZE);
-            prepend(super_string, sub_string, BB_SIZE, BB_SIZE);
-            nsuper += BB_SIZE;
+            word_bin_rep(sub_string, bv->data[block_count - 1], WORD_SIZE);
+            string_prepend(super_string, sub_string, WORD_SIZE, WORD_SIZE);
+            nsuper += WORD_SIZE;
         }
     }
 
     /*print the bit vector*/
-    reverse_string(super_string, nsuper);
+    string_reverse(super_string, nsuper);
     print_string_as_array(super_string, nsuper);
     free(sub_string);
     free(super_string);
-}
-
-void print_string_as_array(char *string, size_t size)
-{
-    /** print the characters of a string as an array of of space-separated chars */
-
-    if (size == 0)
-    {
-        printf("[]");
-        return;
-    }
-
-    printf("[");
-    size_t i;
-    if (size > THRESHHOLD)
-    {
-        for (i = 0; i < THRESHHOLD - 4; i++)
-            printf("%c ", string[i]);
-        printf("... ");
-        for (i = size - 4; i < size - 1; i++)
-            printf("%c ", string[i]);
-        printf("%c]\n", string[size - 1]);
-    }
-    else
-    {
-        for (i = 0; i < size - 1; i++)
-            printf("%c ", string[i]);
-        printf("%c]\n", string[size - 1]);
-    }
 }
 
 void bv_set(bitvector *bv, uint64_t pos)
@@ -158,15 +114,15 @@ void bv_set(bitvector *bv, uint64_t pos)
     uint64_t block, block_index;
     uint8_t k;
 
-    block_index = (uint64_t)pos / BB_SIZE;
-    block = get_block(bv, block_index);
-    k = pos % BB_SIZE;
+    block_index = (uint64_t)pos / WORD_SIZE;
+    block = bv_get_block(bv, block_index);
+    k = pos % WORD_SIZE;
 
-    block = int_set_bit(block, k);
+    block = word_set(block, k);
     bv->data[block_index] = block;
 }
 
-static inline uint64_t get_block(bitvector *bv, uint64_t block_index)
+static inline uint64_t bv_get_block(bitvector *bv, uint64_t block_index)
 {
     return bv->data[block_index];
 }
@@ -188,11 +144,11 @@ bool bv_clear(bitvector *bv, uint64_t pos)
     uint64_t block, block_index;
     uint8_t k;
 
-    block_index = (uint64_t)pos / BB_SIZE;
-    block = get_block(bv, block_index);
-    k = pos % BB_SIZE;
+    block_index = (uint64_t)pos / WORD_SIZE;
+    block = bv_get_block(bv, block_index);
+    k = pos % WORD_SIZE;
 
-    block = int_clear_bit(block, k);
+    block = word_clear(block, k);
     bv->data[block_index] = block;
     return true;
 }
@@ -209,8 +165,8 @@ uint64_t bv_pop_count(bitvector *bv, uint64_t pos)
     ++pos;
 
     uint64_t i, card, block, block_count, remainder;
-    block_count = ceil((double)pos / BB_SIZE) - 1;
-    remainder = pos % BB_SIZE;
+    block_count = ceil((double)pos / WORD_SIZE) - 1;
+    remainder = pos % WORD_SIZE;
 
     card = 0;
     for (i = 0; i < block_count; i++)
@@ -221,7 +177,7 @@ uint64_t bv_pop_count(bitvector *bv, uint64_t pos)
     block = bv->data[block_count];
     if (remainder > 0)
     {
-        block = ~(MASK << remainder) & block;
+        block = ~(ALL_ONES_MASK << remainder) & block;
         card += popcnt(block);
     }
     return card;
@@ -242,17 +198,17 @@ void bv_resize(bitvector *bv, size_t new_size)
     if (curr_size > new_size)
     {
 
-        j = ((int64_t)new_size - 1) / (int64_t)BB_SIZE;
-        remainder = new_size % BB_SIZE;
+        j = ((int64_t)new_size - 1) / (int64_t)WORD_SIZE;
+        remainder = new_size % WORD_SIZE;
         last_partial_block = bv->data[j];
-        last_partial_block = ~(MASK << remainder) & last_partial_block;
+        last_partial_block = ~(ALL_ONES_MASK << remainder) & last_partial_block;
         bv->data[j] = last_partial_block;
 
-        new_actual_size = ceil((double)new_size / BB_SIZE);
+        new_actual_size = ceil((double)new_size / WORD_SIZE);
         if (new_actual_size < bv->allocated)
         {
             /** shrink the underlying array */
-            uint64_t *new_vector = realloc(bv->data, new_actual_size * BB_SIZE);
+            uint64_t *new_vector = realloc(bv->data, new_actual_size * WORD_SIZE);
             bv->data = new_vector;
         }
     }
@@ -261,16 +217,16 @@ void bv_resize(bitvector *bv, size_t new_size)
         /** extend the bitvector **/
         uint64_t additional_size, last_block_index;
 
-        new_actual_size = ceil((double)new_size / BB_SIZE);
+        new_actual_size = ceil((double)new_size / WORD_SIZE);
         if (new_actual_size != bv->allocated)
         {
             /** grow the underlying array */
-            uint64_t *new_vector = realloc(bv->data, new_actual_size * BB_SIZE);
+            uint64_t *new_vector = realloc(bv->data, new_actual_size * WORD_SIZE);
             bv->data = new_vector;
         }
         if (new_size > bv->allocated)
         {
-            last_block_index = (curr_size - 1) / BB_SIZE + 1;
+            last_block_index = (curr_size - 1) / WORD_SIZE + 1;
             additional_size = new_actual_size - bv->allocated;
             for (i = 0; i < additional_size; i++)
             {
@@ -279,7 +235,7 @@ void bv_resize(bitvector *bv, size_t new_size)
         }
     }
 
-    bv->allocated = new_actual_size * BB_SIZE;
+    bv->allocated = new_actual_size * WORD_SIZE;
     bv->size = new_size;
 }
 
@@ -297,32 +253,13 @@ bool bv_isset(bitvector *bv, uint64_t pos)
     uint64_t block, block_index;
     uint8_t k;
 
-    block_index = (uint64_t)pos / BB_SIZE;
-    block = get_block(bv, block_index);
-    k = pos % BB_SIZE;
+    block_index = (uint64_t)pos / WORD_SIZE;
+    block = bv_get_block(bv, block_index);
+    k = pos % WORD_SIZE;
 
-    return int_bit_is_set(block, k);
+    return word_isset(block, k);
 }
 
-void reverse_string(char *string, size_t ns)
-{
-    /** reverse a string in-place **/
-
-    if (ns < 2)
-    {
-        return;
-    }
-    size_t i;
-    char c;
-
-    --ns;
-    for (i = 0; i < ns; i++, ns--)
-    {
-        c = string[i];
-        string[i] = string[ns];
-        string[ns] = c;
-    }
-}
 
 static inline bitvector *bv_shorter(bitvector *a, bitvector *b)
 {
@@ -346,7 +283,7 @@ void bv_print_dec(bitvector *bv)
     {
         printf("[");
         uint64_t i, num_ints;
-        for (num_ints = (bv->allocated / BB_SIZE), i = 0; i < num_ints - 1; i++)
+        for (num_ints = (bv->allocated / WORD_SIZE), i = 0; i < num_ints - 1; i++)
         {
             printf("%llu ", bv->data[i]);
         }
@@ -368,7 +305,7 @@ bitvector *bv_xor(bitvector *a, bitvector *b)
     uint64_t nbv, i;
     bitvector *bv;
 
-    nbv = bv_len(a) / BB_SIZE;
+    nbv = bv_len(a) / WORD_SIZE;
     bv = bv_new(bv_len(a));
 
     for (i = 0; i <= nbv; i++)
@@ -405,10 +342,10 @@ bitvector *bv_complement(bitvector *bv)
     else
     {
         uint64_t i, block, nb;
-        nb = bv_len(bv) / BB_SIZE;
+        nb = bv_len(bv) / WORD_SIZE;
         for (i = 0; i <= nb; i++)
         {
-            block = get_block(bv, i);
+            block = bv_get_block(bv, i);
             block = ~block;
             bv->data[block] = block;
         }
@@ -426,7 +363,7 @@ bitvector *bv_copy(bitvector *bv)
     /** deepcopy a bitvector **/
     bitvector *copy = bv_new(bv_len(bv));
     uint64_t i, nb;
-    for (i = 0, nb = bv_len(bv) / BB_SIZE; i <= nb; i++)
+    for (i = 0, nb = bv_len(bv) / WORD_SIZE; i <= nb; i++)
         copy->data[i] = bv->data[i];
     return copy;
 }
@@ -476,14 +413,14 @@ int64_t bv_select(bitvector *bv, uint64_t k)
     uint64_t block;
 
     card = 0;
-    nb = bv_len(bv) / BB_SIZE;
+    nb = bv_len(bv) / WORD_SIZE;
     for (i = 0; i < nb; i++)
     {
-        block = get_block(bv, i);
+        block = bv_get_block(bv, i);
         in_block_popcnt = popcnt(block);
         if ((uint64_t)in_block_popcnt < k)
         {
-            card += BB_SIZE;
+            card += WORD_SIZE;
             k -= in_block_popcnt;
         }
         else
@@ -493,10 +430,10 @@ int64_t bv_select(bitvector *bv, uint64_t k)
     }
 
     // last step, checking for remainder
-    remainder = (bv_len(bv) - 1) % BB_SIZE;
+    remainder = (bv_len(bv) - 1) % WORD_SIZE;
     if (remainder > 0)
     {
-        pos_lblock = kth_bit(get_block(bv, nb), k);
+        pos_lblock = kth_bit(bv_get_block(bv, nb), k);
         if (pos_lblock == -1 || pos_lblock >= remainder)
         {
             return -1;
@@ -520,7 +457,7 @@ bitvector *bv_reverse(bitvector *bv)
     bitvector *bv_reversed = bv_new(bv_len(bv));
 
     uint64_t j, i;
-    j = bv_len(bv) / BB_SIZE; /*index of last-occupied block */
+    j = bv_len(bv) / WORD_SIZE; /*index of last-occupied block */
 
     for (i = 0; i < j; i++)
     {
@@ -578,10 +515,10 @@ bool bv_toggle(bitvector *bv, uint64_t pos)
     bv_check_index(bv, pos);
 
     uint64_t block_index, k, block;
-    block_index = pos / BB_SIZE;
-    k = pos % BB_SIZE;
-    block = get_block(bv, block_index);
-    block = int_toggle_bit(block, k);
+    block_index = pos / WORD_SIZE;
+    k = pos % WORD_SIZE;
+    block = bv_get_block(bv, block_index);
+    block = word_toggle(block, k);
     bv->data[block_index] = block;
     return true;
 }

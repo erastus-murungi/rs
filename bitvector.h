@@ -10,11 +10,10 @@
 #include <stdlib.h>
 #include <stdbool.h>
 
-#define THRESHHOLD (40)
-#define MASK (0xffffffffffffffffUL)
+#define ALL_ONES_MASK (0xffffffffffffffffUL)
 #define BIT (1UL)
-#define BB_SIZE (64)
-#define SHIFT (6UL)
+#define WORD_SIZE (64)
+#define LOG_WORD_SIZE (6UL)
 
 struct bitvector
 {
@@ -75,13 +74,11 @@ void bv_print(bitvector *);
 
 void bv_print_dec(bitvector *bv);
 
-void bin_rep(char *string, uint64_t x, size_t nx);
+void word_bin_rep(char *string, uint64_t x, size_t nx);
 
 void print_string_as_array(char *string, size_t size);
 
-void reverse_string(char *string, size_t ns);
-
-void prepend(char *super_string, char *sub_string, uint64_t nsuper, uint64_t nsub);
+void string_prepend(char *super_string, char *sub_string, uint64_t nsuper, uint64_t nsub);
 
 int64_t bv_select(bitvector *bv, uint64_t k);
 
@@ -93,3 +90,5 @@ static inline u_int64_t popcnt(uint64_t i)
 {
     return __builtin_popcountll(i);
 }
+
+void string_reverse(char *string, size_t ns);
