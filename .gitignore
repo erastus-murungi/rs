@@ -10,3 +10,6 @@ CPackSourceConfig.cmake
 CMakeCache.txt
 CTestTestfile.cmake
 RankSelect
+test_*
+lib/
+_deps

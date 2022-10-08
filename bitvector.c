@@ -32,9 +32,8 @@ static inline uint64_t int_toggle_bit(uint64_t x, uint8_t k)
     return x ^ (BIT << k);
 }
 
-bitvector *bv_new(uint64_t size)
+bitvector *bv_new(size_t size)
 {
-    // number of ints
     const uint64_t num_ints = (size >> SHIFT) + BIT;
     uint64_t *data = calloc(num_ints, BB_SIZE);
     bitvector *bv = malloc(sizeof(bitvector));
@@ -466,7 +465,7 @@ short signed int kth_bit(uint64_t x, uint64_t k)
     return -1;
 }
 
-int64_t select(bitvector *bv, uint64_t k)
+int64_t bv_select(bitvector *bv, uint64_t k)
 {
     /** find the position of the k'th set bit **/
 

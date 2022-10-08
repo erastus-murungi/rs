@@ -25,7 +25,7 @@ struct bitvector
 
 typedef struct bitvector bitvector;
 
-bitvector *bv_new();
+bitvector *bv_new(size_t);
 
 void bv_free(bitvector *);
 
@@ -83,7 +83,7 @@ void reverse_string(char *string, size_t ns);
 
 void prepend(char *super_string, char *sub_string, uint64_t nsuper, uint64_t nsub);
 
-int64_t select(bitvector *bv, uint64_t k);
+int64_t bv_select(bitvector *bv, uint64_t k);
 
 uint64_t reverse_bits(uint64_t x);
 
