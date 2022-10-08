@@ -9,8 +9,6 @@
 #include <string.h>
 #include <math.h>
 
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wimplicit-int"
 
 static uint64_t get_block(bitvector *bv, uint64_t pos);
 
@@ -37,7 +35,7 @@ static inline uint64_t int_toggle_bit(uint64_t x, uint8_t k)
 bitvector *bv_new(uint64_t size)
 {
     // number of ints
-    uint64_t num_ints = (size >> SHIFT) + BIT;
+    const uint64_t num_ints = (size >> SHIFT) + BIT;
     uint64_t *data = calloc(num_ints, BB_SIZE);
     bitvector *bv = malloc(sizeof(bitvector));
     *bv = (bitvector){
@@ -484,7 +482,7 @@ int64_t select(bitvector *bv, uint64_t k)
     {
         block = get_block(bv, i);
         in_block_popcnt = popcnt(block);
-        if (in_block_popcnt < k)
+        if ((uint64_t)in_block_popcnt < k)
         {
             card += BB_SIZE;
             k -= in_block_popcnt;
@@ -588,5 +586,3 @@ bool bv_toggle(bitvector *bv, uint64_t pos)
     bv->data[block_index] = block;
     return true;
 }
-
-#pragma clang diagnostic pop
