@@ -4,9 +4,15 @@
 #include <stdbool.h>
 #include <math.h>
 
-
 static uint64_t bv_get_block(bitvector *bv, uint64_t pos);
 
+/**
+ * @brief
+ *
+ * @param x the WORD_SIZE-bit integer whose kth bit we should set
+ * @param k the position which is 0 <= k < 64
+ * @return uint64_t
+ */
 static inline uint64_t word_set(uint64_t x, uint8_t k)
 {
     return x | (BIT << k);
@@ -32,11 +38,29 @@ static inline uint64_t popcnt(uint64_t i)
     return __builtin_popcountll(i);
 }
 
+#define BV_CHECK_NONNULL(bv)                                                                                           \
+    do                                                                                                                 \
+    {                                                                                                                  \
+        if (bv == NULL)                                                                                                \
+        {                                                                                                              \
+            BV_REPORT_ERROR_AND_EXIT(bv == NULL, __FILE__, __PRETTY_FUNCTION__, __LINE__, "null pointer encountered"); \
+        }                                                                                                              \
+    } while (0)
+
 bitvector *bv_new(size_t size)
 {
     const uint64_t num_ints = (size >> LOG_WORD_SIZE) + BIT;
     uint64_t *data = calloc(num_ints, WORD_SIZE);
+    if (data == NULL)
+    {
+        BV_REPORT_ERROR_AND_EXIT(data == NULL, __FILE__, __PRETTY_FUNCTION__, __LINE__, "could not allocate data array");
+    }
+
     bitvector *bv = malloc(sizeof(bitvector));
+    if (bv == NULL)
+    {
+        BV_REPORT_ERROR_AND_EXIT(bv == NULL, __FILE__, __PRETTY_FUNCTION__, __LINE__, "could not allocate bitvector");
+    }
     *bv = (bitvector){
         data, size, (num_ints) * (BIT << LOG_WORD_SIZE)};
     return bv;
@@ -116,7 +140,7 @@ void bv_check_index(bitvector *bv, uint64_t pos)
     }
 }
 
-bool bv_clear(bitvector *bv, uint64_t pos)
+void bv_clear(bitvector *bv, uint64_t pos)
 {
     /** clears the bit at the pos **/
 
@@ -130,7 +154,6 @@ bool bv_clear(bitvector *bv, uint64_t pos)
 
     block = word_clear(block, k);
     bv->data[block_index] = block;
-    return true;
 }
 
 uint64_t bv_pop_count(bitvector *bv, uint64_t pos)
@@ -227,8 +250,6 @@ size_t bv_len(bitvector *bv)
 
 bool bv_isset(bitvector *bv, uint64_t pos)
 {
-    /** returns true if the bit at position x is set and false otherwise**/
-
     bv_check_index(bv, pos);
     uint64_t block, block_index;
     uint8_t k;
@@ -239,7 +260,6 @@ bool bv_isset(bitvector *bv, uint64_t pos)
 
     return word_isset(block, k);
 }
-
 
 static inline bitvector *bv_shorter(bitvector *a, bitvector *b)
 {
@@ -296,6 +316,10 @@ bitvector *bv_xor(bitvector *a, bitvector *b)
 
 bool bv_equal(bitvector *a, bitvector *b)
 {
+    BV_CHECK_NONNULL(a);
+    BV_CHECK_NONNULL(b);
+
+    // if the two vectors differ in length, they can't be equal
     if (bv_len(a) != bv_len(b))
         return false;
 
